@@ -1,0 +1,6 @@
+# Bloqueamos .env por seguridad (contraseñas DSpace)
+.env
+# Archivos temporales de Python que no sirven en la nube
+__pycache__/
+# No subir los reportes de Excel porque son pesados y locales
+output/

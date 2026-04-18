@@ -1,0 +1,163 @@
+import pandas as pd
+from datetime import datetime
+from pathlib import Path
+from rapidfuzz import fuzz, process
+
+# === CONFIGURACIÓN ===
+UI_BASE_URL = "https://repositorio.dar.org.pe/items"
+THRESH_STRICT = 90
+THRESH_LOOSE = 80
+
+# === UTILIDADES DE LIMPIEZA ===
+
+def normalize_text(s: str) -> str:
+    """Normaliza texto: comillas rectas y espacios colapsados."""
+    if pd.isna(s): return ""
+    s = str(s).strip()
+    s = s.replace("“", '"').replace("”", '"').replace("’", "'").replace("‘", "'")
+    # Colapsamos espacios dobles sin usar Regex:
+    return " ".join(s.split())
+
+def normalize_for_compare(s: str) -> str:
+    """Lo pasa a minúsculas y quita puntuación final para comparar."""
+    s1 = normalize_text(s).lower()
+    return s1.strip(" .,-;:")
+
+# === FUNCIÓN PRINCIPAL DEL MÓDULO ===
+
+def procesar_duplicados(session, base_url, coleccion_uuid="TODO"):
+    
+    if coleccion_uuid == "TODO":
+        print("[1/4] Conectando a DSpace y extrayendo TODO el repositorio (Core API)...")
+    else:
+        print("[1/4] Conectando a DSpace y extrayendo la Colección (Discover API)...")
+        
+    items_extraidos = []
+    page = 0
+    size = 100 
+    
+    while True:
+        # 1. Petición dinámica según la elección
+        if coleccion_uuid == "TODO":
+            r = session.get(f"{base_url}/api/core/items?size={size}&page={page}")
+        else:
+            # Usamos el motor de descubrimiento con "scope" apuntando a la colección
+            endpoint = f"{base_url}/api/discover/search/objects"
+            params = f"?scope={coleccion_uuid}&dsoType=ITEM&embed=indexableObject&size={size}&page={page}"
+            r = session.get(endpoint + params)
+
+        if r.status_code != 200:
+            print(f"[ERROR] Falló la lectura en la página {page} -> Código HTTP: {r.status_code}")
+            break            
+            
+        data = r.json()
+        
+        # 2. Desempacado del JSON (las estructuras son distintas)
+        if coleccion_uuid == "TODO":
+            page_items = data.get("_embedded", {}).get("items", [])
+            total_pages = data.get("page", {}).get("totalPages", 1)
+        else:
+            search_result = data.get("_embedded", {}).get("searchResult", {})
+            objects = search_result.get("_embedded", {}).get("objects", [])
+            
+            # Extraemos el ítem real que viene incrustado en el resultado de búsqueda
+            page_items = []
+            for obj in objects:
+                item = obj.get("_embedded", {}).get("indexableObject")
+                if item:
+                    page_items.append(item)
+            
+            total_pages = search_result.get("page", {}).get("totalPages", 1)
+            
+        if not page_items:
+            break # Ya no hay más items
+            
+        # 3. Extracción de metadatos (Esto es igual para ambos métodos)
+        for item in page_items:
+            uuid = item.get("uuid")
+            metadata = item.get("metadata", {})
+            
+            titulos = metadata.get("dc.title", [])
+            titulo_str = titulos[0].get("value") if titulos else "Sin título"
+            
+            items_extraidos.append({
+                "UUID": uuid,
+                "Original": titulo_str
+            })
+            
+        print(f"      -> Página {page + 1} de {total_pages} descargada ({len(items_extraidos)} registros acumulados)")
+        
+        if page >= total_pages - 1:
+            break
+        page += 1
+
+    if len(items_extraidos) < 2:
+        print("No hay suficientes ítems para comparar.")
+        return
+
+    print(f"\n[2/4] Normalizando {len(items_extraidos)} títulos...")
+    records = []
+    for i, item in enumerate(items_extraidos, start=1):
+        t = item["Original"]
+        records.append({
+            "Idx": i,
+            "UUID": item["UUID"],
+            "URL_Revisión": f"{UI_BASE_URL}/{item['UUID']}", 
+            "Original": t,
+            "Normalized": normalize_text(t),
+            "CompareKey": normalize_for_compare(t),
+        })
+
+    df = pd.DataFrame(records)
+
+    print("[3/4] Ejecutando algoritmo de similitud (RapidFuzz)...")
+    compare_list = df["CompareKey"].tolist()
+    index_list = df["Idx"].tolist()
+
+    sim_pairs = []
+    scores_matrix = process.cdist(
+        compare_list, compare_list, scorer=fuzz.token_set_ratio, score_cutoff=THRESH_LOOSE
+    )
+
+    n = len(compare_list)
+    for i in range(n):
+        for j in range(i + 1, n):
+            score = scores_matrix[i, j]
+            if score >= THRESH_LOOSE:
+                row_A = df.loc[df["Idx"] == index_list[i]].iloc[0]
+                row_B = df.loc[df["Idx"] == index_list[j]].iloc[0]
+                
+                sim_pairs.append({
+                    "UUID_A": row_A["UUID"],
+                    "Title_A": row_A["Original"],
+                    "Link_A": row_A["URL_Revisión"],
+                    "UUID_B": row_B["UUID"],
+                    "Title_B": row_B["Original"],
+                    "Link_B": row_B["URL_Revisión"],
+                    "Score": int(score)
+                })
+
+    df_pairs = pd.DataFrame(sim_pairs)
+    if not df_pairs.empty:
+        df_pairs = df_pairs.sort_values(["Score"], ascending=[False])
+        df_pairs_strict = df_pairs[df_pairs["Score"] >= THRESH_STRICT].copy()
+        df_pairs_loose = df_pairs[(df_pairs["Score"] >= THRESH_LOOSE) & (df_pairs["Score"] < THRESH_STRICT)].copy()
+    else:
+        df_pairs_strict = pd.DataFrame()
+        df_pairs_loose = pd.DataFrame()
+
+    print("[4/4] Exportando resultados a Excel...")
+    TIMESTAMP = datetime.now().strftime("%Y%m%d_%H%M")
+    OUTPUT_FILE = Path(f"output/reporte_duplicados_{TIMESTAMP}.xlsx")
+    OUTPUT_FILE.parent.mkdir(parents=True, exist_ok=True)
+
+    with pd.ExcelWriter(OUTPUT_FILE, engine="openpyxl") as writer:
+        if not df_pairs_strict.empty:
+            df_pairs_strict.to_excel(writer, index=False, sheet_name=f"Pairs_{THRESH_STRICT}_plus")
+        
+        if not df_pairs_loose.empty:
+            df_pairs_loose.to_excel(writer, index=False, sheet_name=f"Pairs_{THRESH_LOOSE}_{THRESH_STRICT-1}")
+            
+        df[["UUID", "URL_Revisión", "Original", "Normalized"]].to_excel(writer, index=False, sheet_name="All_titles_normalized")
+
+    print(f"\n✅ ¡Proceso terminado! Revisa la carpeta 'output': {OUTPUT_FILE.name}")
