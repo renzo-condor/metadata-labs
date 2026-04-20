@@ -132,11 +132,16 @@ def extraer_metadatos(session, base_url, coleccion_uuid):
             orcids = metadata.get("person.identifier.orcid", [])
             orcids_str = " || ".join([o.get("value") for o in orcids]) if orcids else ""
 
+            # Extraer Abstract
+            abstracts = metadata.get("dc.description.abstract", [])
+            abstract_str = abstracts[0].get("value") if abstracts else "Sin resumen"
+
             items_extraidos.append({
                 "UUID": uuid,
                 "Original": titulo_str,
                 "dc.contributor.author": autores_str,
-                "person.identifier.orcid": orcids_str
+                "person.identifier.orcid": orcids_str,
+                "Abstract": abstract_str
             })
             
         print(f"      -> Página {page + 1} de {total_pages} descargada ({len(items_extraidos)} registros acumulados)")
@@ -146,3 +151,32 @@ def extraer_metadatos(session, base_url, coleccion_uuid):
         page += 1
 
     return pd.DataFrame(items_extraidos)
+
+def extraer_metadato_item_individual(session, base_url, uuid):
+    """Extrae la información de un solo ítem usando su UUID."""
+    print(f"Consultando UUID: {uuid}...")
+    url = f"{base_url}/api/core/items/{uuid}"
+    
+    r = session.get(url)
+    if r.status_code != 200:
+        print(f"[!] Error: No se encontró el ítem {uuid}")
+        return pd.DataFrame()
+        
+    item_data = r.json()
+    metadata = item_data.get("metadata", {})
+    
+    titulo = metadata.get("dc.title", [{"value": "Sin Título"}])[0].get("value")
+    autores = [a.get("value") for a in metadata.get("dc.contributor.author", [])]
+    autores_str = " | ".join(autores) if autores else "Sin Autor"
+    
+    abstract_list = metadata.get("dc.description.abstract", [])
+    abstract_str = abstract_list[0].get("value") if abstract_list else "Sin resumen"
+
+    df = pd.DataFrame([{
+        "UUID": uuid,
+        "Original": titulo,
+        "dc.contributor.author": autores_str,
+        "Abstract": abstract_str
+    }])
+    
+    return df

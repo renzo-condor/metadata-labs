@@ -1,4 +1,4 @@
-# Bloqueamos .env por seguridad (contraseñas DSpace)
+# Bloqueamos .env por seguridad (contraseñas DSpace y Gemini API)
 .env
 # Archivos temporales de Python que no sirven en la nube
 __pycache__/
