@@ -5,7 +5,6 @@ from pathlib import Path
 
 UI_BASE_URL = os.getenv("UI_BASE_URL")
 
-
 def auditar_autor(autor):
     """
     Analiza la sintaxis de un autor y devuelve el tipo de error (o 'Correcto').
