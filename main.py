@@ -9,9 +9,9 @@ from scripts.mod6_ods_classifier import fase1_generar_propuestas_ods
 
 if __name__ == "__main__":
     print("=======================================")
-    print("📚 METADATA LABS - DSpace 7 Automator")
+    print("METADATA LABS | Intelligence & Quality Assurance")
     print("=======================================\n")
-    
+   
     session = get_session()
     
     if login(session):
@@ -29,7 +29,6 @@ if __name__ == "__main__":
         if opcion in ["1", "2", "3", "4", "5", "6"]:
             df_global = pd.DataFrame() # Creamos un df vacío por defecto
             
-            # --- LÓGICA EXCLUSIVA PARA EL MÓDULO 6 (IA) ---
             if opcion == "6":
                 print("\n¿Qué alcance deseas procesar con la IA?")
                 print("1. Una Colección entera (Batch)")

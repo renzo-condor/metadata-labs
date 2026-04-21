@@ -1,10 +1,11 @@
+import os
 import pandas as pd
 from datetime import datetime
 from pathlib import Path
 from rapidfuzz import fuzz, process
 
 # === CONFIGURACIÓN ===
-UI_BASE_URL = "https://repositorio.dar.org.pe/items"
+UI_BASE_URL = os.getenv("UI_BASE_URL")
 THRESH_STRICT = 90
 THRESH_LOOSE = 80
 

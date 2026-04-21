@@ -1,8 +1,10 @@
+import os
 import pandas as pd
 from datetime import datetime
 from pathlib import Path
 
-UI_BASE_URL = "https://repositorio.dar.org.pe/items"
+UI_BASE_URL = os.getenv("UI_BASE_URL")
+
 
 def auditar_autor(autor):
     """

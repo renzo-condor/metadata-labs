@@ -1,3 +1,4 @@
+import os
 import pandas as pd
 import requests
 import re
@@ -5,7 +6,8 @@ import time
 from datetime import datetime
 from pathlib import Path
 
-UI_BASE_URL = "https://repositorio.dar.org.pe/items"
+UI_BASE_URL = os.getenv("UI_BASE_URL")
+
 SLEEP_SEC = 0.2
 TIMEOUT_SEC = 10
 

@@ -5,7 +5,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-BASE_URL = "https://repositorio.dar.org.pe/server"
+BASE_URL = os.getenv("DSPACE_URL")
 USER = os.getenv("DSPACE_USER")
 PASSWORD = os.getenv("DSPACE_PASSWORD")
 
