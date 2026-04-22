@@ -11,23 +11,24 @@ THRESH_LOOSE = 80
 
 # === UTILIDADES DE LIMPIEZA ===
 
+# Normaliza texto: comillas rectas y espacios colapsados.
 def normalize_text(s: str) -> str:
-    """Normaliza texto: comillas rectas y espacios colapsados."""
     if pd.isna(s): return ""
     s = str(s).strip()
     s = s.replace("“", '"').replace("”", '"').replace("’", "'").replace("‘", "'")
     return " ".join(s.split())
 
+# Pasa a minúsculas y quita puntuación final para comparar.
 def normalize_for_compare(s: str) -> str:
-    """Lo pasa a minúsculas y quita puntuación final para comparar."""
     s1 = normalize_text(s).lower()
     return s1.strip(" .,-;:")
 
 # === FUNCIÓN PRINCIPAL DEL MÓDULO ===
 
+# Detecta pares de títulos similares y exporta los resultados a Excel.
 def procesar_duplicados(df):
     if df.empty or len(df) < 2:
-        print("No hay suficientes ítems para comparar.")
+        print("[!] No hay suficientes ítems para comparar.")
         return
 
     print(f"\n[2/4] Normalizando {len(df)} títulos...")
@@ -85,7 +86,7 @@ def procesar_duplicados(df):
 
     print("[4/4] Exportando resultados a Excel...")
     TIMESTAMP = datetime.now().strftime("%Y%m%d_%H%M")
-    OUTPUT_FILE = Path(f"output/reporte_duplicados_{TIMESTAMP}.xlsx")
+    OUTPUT_FILE = Path(f"output/mod1_title_duplicates_{TIMESTAMP}.xlsx")
     OUTPUT_FILE.parent.mkdir(parents=True, exist_ok=True)
 
     with pd.ExcelWriter(OUTPUT_FILE, engine="openpyxl") as writer:
@@ -97,4 +98,4 @@ def procesar_duplicados(df):
             
         df_norm[["UUID", "URL_Revisión", "Original", "Normalized"]].to_excel(writer, index=False, sheet_name="All_titles_normalized")
 
-    print(f"¡Proceso terminado! Revisa la carpeta 'output': {OUTPUT_FILE.name}")
+    print(f"[OK] Proceso terminado. Reporte: {OUTPUT_FILE.name}")

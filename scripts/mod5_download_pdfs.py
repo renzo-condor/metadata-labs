@@ -27,13 +27,13 @@ def descargar_pdf(session, url, destino):
 # Orquesta el proceso completo de descarga para cada ítem del DataFrame.
 def procesar_descargas(session, df, base_url):
     if df.empty:
-        print("No hay ítems para procesar.")
+        print("[!] No hay ítems para procesar.")
         return
 
     print(f"\n[1/2] Iniciando proceso de descarga para {len(df)} ítems...")
     
     timestamp = datetime.now().strftime("%Y%m%d_%H%M")
-    folder_path = Path(f"output/descargas_{timestamp}")
+    folder_path = Path(f"output/mod5_download_pdfs_{timestamp}")
     folder_path.mkdir(parents=True, exist_ok=True)
     
     log_descargas = []
@@ -82,7 +82,7 @@ def procesar_descargas(session, df, base_url):
                 break # Ya revisamos el ORIGINAL, no necesitamos ver más cajones
                 
         if not pdfs_encontrados:
-            print(f"   [?] Sin PDFs públicos en el bloque ORIGINAL: {titulo}")
+            print(f" [!] Sin PDFs públicos en el bloque ORIGINAL: {titulo}")
             log_descargas.append({
                 "UUID": uuid,
                 "Título": row["Original"],
@@ -91,11 +91,11 @@ def procesar_descargas(session, df, base_url):
             })
             continue
 
-        print(f"   -> Encontrados {len(pdfs_encontrados)} PDF(s) en: {titulo}")
-        
+        print(f"   [OK] {len(pdfs_encontrados)} PDF(s) encontrados en: {titulo}")
+
         for pdf in pdfs_encontrados:
             nombre_limpio = limpiar_nombre_archivo(pdf["nombre"])
-            filename = f"{uuid[:8]}_{nombre_limpio}" 
+            filename = f"{uuid[:8]}_{nombre_limpio}" # Prefijo con parte del UUID para evitar colisiones
             destino = folder_path / filename
             
             exito = descargar_pdf(session, pdf["url"], destino)
@@ -109,10 +109,9 @@ def procesar_descargas(session, df, base_url):
             
     print(f"\n[2/2] Generando reporte de descargas...")
     df_log = pd.DataFrame(log_descargas)
-    reporte_path = folder_path / "resumen_descargas.xlsx"
+    reporte_path = folder_path / "mod5_download_pdfs.xlsx"
     
     with pd.ExcelWriter(reporte_path, engine="openpyxl") as writer:
         df_log.to_excel(writer, index=False, sheet_name="Descargas")
         
-    print(f"¡Proceso terminado de forma exitosa!")
-    print(f"Archivos y reporte guardados en: {folder_path.resolve()}")
+    print(f"[OK] Proceso terminado. Archivos y reporte guardados en: {folder_path.resolve()}")

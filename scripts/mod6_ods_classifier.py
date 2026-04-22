@@ -14,13 +14,13 @@ load_dotenv()
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 
 if not GEMINI_API_KEY:
-    print("⚠️ ADVERTENCIA: No se encontró GEMINI_API_KEY en el archivo .env")
+    print("[!] No se encontró GEMINI_API_KEY en el archivo .env")
 
 # Iniciar el cliente con la nueva SDK de Google
 client = genai.Client(api_key=GEMINI_API_KEY)
 
+# Envía título y resumen a Gemini y devuelve los ODS sugeridos. Reintenta si hay error 429.
 def clasificar_con_ia(titulo, resumen, reintentos=3):
-    """Envía un documento a Gemini con manejo de errores 429 (Rate Limit)."""
     prompt = f"""
     Eres un catalogador experto en repositorios académicos. 
     Tu tarea es analizar el título y el resumen de un documento académico y asignarle EXACTAMENTE tres (3) Objetivos de Desarrollo Sostenible (ODS) de la ONU que sean los más pertinentes.
@@ -37,7 +37,7 @@ def clasificar_con_ia(titulo, resumen, reintentos=3):
     
     for intento in range(reintentos):
         try:
-            # Usamos el 1.5-flash que tiene una capa gratuita mucho más amplia
+            # gemini-3.1-flash-lite-preview: modelo ligero con mayor cuota gratuita
             response = client.models.generate_content(
                 model='gemini-3.1-flash-lite-preview',
                 contents=prompt,
@@ -63,12 +63,11 @@ def clasificar_con_ia(titulo, resumen, reintentos=3):
             
     return "Error: Límite de cuota excedido repetidamente"
 
+# FASE 1: Lee los ítems, consulta a Gemini uno por uno, y exporta propuestas a Excel.
 def fase1_generar_propuestas_ods(df):
-    """
-    FASE 1: Lee los ítems, consulta a Gemini uno por uno, y exporta a Excel.
-    """
+
     if not GEMINI_API_KEY:
-        print("⚠️ No se puede continuar sin la llave de API.")
+        print("[ERROR] No se puede continuar sin la llave de API.")
         return
         
     print(f"\n[1/3] Iniciando clasificación IA para {len(df)} ítems usando Gemini 1.5 Flash...")
@@ -82,8 +81,8 @@ def fase1_generar_propuestas_ods(df):
         
         if resumen == "Sin resumen" and len(titulo) < 10:
             continue
-            
-        print(f"   -> Pensando ODS para: {titulo[:50]}...")
+
+        print(f"   [...] Clasificando: {titulo[:50]}...")
         
         ods_sugeridos = clasificar_con_ia(titulo, resumen)
         
@@ -101,26 +100,23 @@ def fase1_generar_propuestas_ods(df):
     df_resultados = pd.DataFrame(resultados)
     
     timestamp = datetime.now().strftime("%Y%m%d_%H%M")
-    output_path = Path(f"output/IA_ODS_Propuestas_{timestamp}.xlsx")
+    output_path = Path(f"output/mod6_ods_classifier_{timestamp}.xlsx")
     output_path.parent.mkdir(parents=True, exist_ok=True)
     
     with pd.ExcelWriter(output_path, engine="openpyxl") as writer:
         df_resultados.to_excel(writer, index=False, sheet_name="Revisión_ODS")
         
-    print(f"[3/3] ¡Listo! Revisa y edita este archivo antes de la Fase 2:")
-    print(f"📂 {output_path.resolve()}")
+    print(f"[OK] Proceso terminado. Revisa y edita el archivo antes de la Fase 2: {output_path.resolve()}")
 
 
-# =====================================================================
-# FASE 2: ACTUALIZADOR DSPACE (Para testear mañana/pasado)
-# =====================================================================
+# FASE 2: ACTUALIZADOR DSPACE
 def fase2_actualizar_dspace(session, base_url, archivo_excel):
-    """FASE 2: Inyectar vía PATCH"""
+    # PATCH desactivado: descomentar para ejecución real (actualmente en modo simulación)
     print(f"\nLeyendo archivo revisado: {archivo_excel}...")
     try:
         df_revisado = pd.read_excel(archivo_excel)
-    except Exception as e:
-        print(f"Error leyendo el Excel: {e}")
+    except Exception as e:        
+        print(f"[ERROR] No se pudo leer el archivo: {e}")
         return
 
     print("Iniciando inyección de metadatos vía PATCH...")
@@ -148,8 +144,8 @@ def fase2_actualizar_dspace(session, base_url, archivo_excel):
         # EJECUCIÓN 
         # r = session.patch(endpoint, json=operaciones_patch, headers=headers)
         # if r.status_code == 200:
-        #     print(f"✅ ODS inyectados en {uuid}")
+        #     print(f"[OK] ODS inyectados en {uuid}")        
         # else:
-        #     print(f"❌ Error {r.status_code} en {uuid}")
+        #     print(f"[ERROR] {r.status_code} en {uuid}")
             
-        print(f"✅ [SIMULACIÓN] Se inyectarían {len(lista_ods)} ODS en UUID {uuid[:8]}")
+        print(f"[SIMULACIÓN] Se inyectarían {len(lista_ods)} ODS en UUID {uuid[:8]}")

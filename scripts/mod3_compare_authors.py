@@ -5,16 +5,14 @@ from pathlib import Path
 from rapidfuzz import fuzz, process
 
 # === CONFIGURACIÓN ===
+
 # Umbral de similitud
 THRESHOLD = 80
 
+# Detecta variantes de nombres de autor por similitud fuzzy y exporta los pares sospechosos a Excel.
 def comparar_autores_masivo(df):
-    """
-    Realiza un control de autoridades fuzzy sobre el DataFrame global.
-    Detecta variantes de nombres basándose en similitud de tokens.
-    """
     if df.empty:
-        print("No hay datos para procesar.")
+        print("[!] No hay datos para procesar.")
         return
 
     print(f"\n[1/3] Extrayendo y contando frecuencias de autores únicos...")
@@ -26,7 +24,7 @@ def comparar_autores_masivo(df):
         all_authors.extend([a.strip() for a in str(val).split(" || ") if a.strip()])
     
     if not all_authors:
-        print("No se encontraron autores para comparar.")
+        print("[!] No se encontraron autores para comparar.")
         return
 
     # Creamos un conteo de frecuencia (¿Cuántas veces aparece cada autor escrito así?)
@@ -38,7 +36,7 @@ def comparar_autores_masivo(df):
     print(f"      -> Se encontraron {n} autores únicos en la colección.")
 
     if n < 2:
-        print("No hay suficientes autores distintos para realizar una comparación.")
+        print("[!] No hay suficientes autores distintos para realizar una comparación.")
         return
 
     print(f"[2/3] Calculando matriz de similitud (RapidFuzz cdist)...")
@@ -51,8 +49,7 @@ def comparar_autores_masivo(df):
     # 3. Extraer los pares sospechosos
     pares_sospechosos = []
     
-    # Solo recorremos la mitad superior de la matriz (encima de la diagonal) 
-    # para evitar duplicar comparaciones (A vs B y B vs A)
+    # Solo mitad superior de la matriz para evitar duplicar pares (A vs B / B vs A)
     for i in range(n):
         for j in range(i + 1, n):
             score = matrix[i, j]
@@ -76,18 +73,17 @@ def comparar_autores_masivo(df):
     df_final = pd.DataFrame(pares_sospechosos)
     
     if df_final.empty:
-        print("No se encontraron variantes sospechosas con el umbral actual.")
+        print("[OK] No se encontraron variantes sospechosas con el umbral actual.")
         return
 
-    # Ordenar por similitud (lo más parecido arriba)
+    # Ordenar por similitud para revisar primero los casos más cercanos
     df_final = df_final.sort_values(by="Similitud_%", ascending=False)
 
     TIMESTAMP = datetime.now().strftime("%Y%m%d_%H%M")
-    OUTPUT_FILE = Path(f"output/reporte_autoridades_{TIMESTAMP}.xlsx")
+    OUTPUT_FILE = Path(f"output/mod3_compare_authors_{TIMESTAMP}.xlsx")
     OUTPUT_FILE.parent.mkdir(parents=True, exist_ok=True)
 
     with pd.ExcelWriter(OUTPUT_FILE, engine="openpyxl") as writer:
         df_final.to_excel(writer, index=False, sheet_name="Revisar_Variantes")
 
-    print(f"¡Proceso terminado! Se detectaron {len(df_final)} pares de posibles variantes.")
-    print(f"Revisa el reporte en: {OUTPUT_FILE.name}")
+    print(f"[OK] Proceso terminado. {len(df_final)} pares detectados. Reporte: {OUTPUT_FILE.name}")

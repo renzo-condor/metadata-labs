@@ -11,14 +11,17 @@ UI_BASE_URL = os.getenv("UI_BASE_URL")
 SLEEP_SEC = 0.2
 TIMEOUT_SEC = 10
 
+# Regex para extraer el ID ORCID de un texto (formato: XXXX-XXXX-XXXX-XXXX)
 ORCID_PATTERN = re.compile(r"\b(\d{4}-\d{4}-\d{4}-\d{3}[\dX])\b", re.IGNORECASE)
 
+# Busca y devuelve el ID ORCID dentro de un texto, o None si no encuentra.
 def extract_orcid_id(text: str) -> str:
     if not text or pd.isna(text):
         return None
     m = ORCID_PATTERN.search(str(text).strip())
     return m.group(1) if m else None
 
+# Consulta la API pública de ORCID y devuelve el status HTTP y el JSON del registro.
 def fetch_orcid_record(orcid_id: str):
     url = f"https://pub.orcid.org/v3.0/{orcid_id}"
     headers = {"Accept": "application/json"}
@@ -30,6 +33,7 @@ def fetch_orcid_record(orcid_id: str):
     except requests.RequestException:
         return None, None
 
+# Extrae nombre completo, nombre y apellido desde el JSON de un registro ORCID.
 def parse_names(record: dict):
     if not record:
         return None, None, None
@@ -42,15 +46,16 @@ def parse_names(record: dict):
 
     return display, given, family
 
+# Valida los ORCIDs del DataFrame contra la API pública y exporta el resultado a Excel.
 def validar_orcids(df):
     if df.empty or "person.identifier.orcid" not in df.columns:
-        print("No hay datos de ORCID para procesar.")
+        print("[!] No hay datos de ORCID para procesar.")
         return
 
     print(f"\n[1/3] Analizando y validando ORCIDs en {len(df)} registros...")
     
     registros_resultados = []
-    memoria_cache = {} # Aquí guardaremos los ORCIDs ya consultados para no repetir
+    memoria_cache = {} # Cache para no consultar la API dos veces por el mismo ORCID
     
     for i, row in df.iterrows():
         uuid = row["UUID"]
@@ -108,7 +113,7 @@ def validar_orcids(df):
     df_resultados = pd.DataFrame(registros_resultados)
     
     if df_resultados.empty:
-        print("No se encontraron ORCIDs en la colección seleccionada.")
+        print("[!] No se encontraron ORCIDs en la colección seleccionada.")
         return
 
     # Ordenar por estado (para ver los errores arriba)
@@ -116,11 +121,10 @@ def validar_orcids(df):
 
     print("[3/3] Exportando a Excel...")
     TIMESTAMP = datetime.now().strftime("%Y%m%d_%H%M")
-    OUTPUT_FILE = Path(f"output/reporte_orcids_{TIMESTAMP}.xlsx")
+    OUTPUT_FILE = Path(f"output/mod4_validate_orcids_{TIMESTAMP}.xlsx")
     OUTPUT_FILE.parent.mkdir(parents=True, exist_ok=True)
 
     with pd.ExcelWriter(OUTPUT_FILE, engine="openpyxl") as writer:
         df_resultados.to_excel(writer, index=False, sheet_name="Auditoria_ORCID")
 
-    print(f"¡Proceso terminado! Se auditaron {len(df_resultados)} identificadores.")
-    print(f"Revisa la carpeta 'output': {OUTPUT_FILE.name}")
+    print(f"[OK] Proceso terminado. {len(df_resultados)} identificadores auditados. Reporte: {OUTPUT_FILE.name}")

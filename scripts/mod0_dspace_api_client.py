@@ -1,6 +1,7 @@
 import os
 import requests
 import pandas as pd
+import time
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -9,6 +10,7 @@ BASE_URL = os.getenv("DSPACE_URL")
 USER = os.getenv("DSPACE_USER")
 PASSWORD = os.getenv("DSPACE_PASSWORD")
 
+# Crea y configura una sesión HTTP con headers base.
 def get_session():
     session = requests.Session()
     session.headers.update({
@@ -17,6 +19,7 @@ def get_session():
     })
     return session
 
+# Obtiene el token CSRF desde el endpoint de autenticación y lo inyecta en los headers.
 def refresh_csrf(session):
     r = session.get(f"{BASE_URL}/api/authn/status")
     csrf = r.headers.get("DSPACE-XSRF-TOKEN") or session.cookies.get("DSPACE-XSRF-COOKIE")
@@ -24,6 +27,7 @@ def refresh_csrf(session):
         session.headers.update({"X-XSRF-TOKEN": csrf})
     return csrf
 
+# Autentica al usuario y agrega el token Bearer a los headers de la sesión.
 def login(session):
     refresh_csrf(session)
     r = session.post(
@@ -39,6 +43,7 @@ def login(session):
         print(f"[ERROR] Login falló: {r.status_code} — {r.text}")
         return False
 
+# Lista las colecciones disponibles y devuelve el UUID elegido, o 'TODO' para el repositorio completo.
 def seleccionar_coleccion(session, base_url):
     print("\nConsultando las colecciones del repositorio...")
     r = session.get(f"{base_url}/api/core/collections?size=100")
@@ -50,7 +55,7 @@ def seleccionar_coleccion(session, base_url):
     colecciones = r.json().get("_embedded", {}).get("collections", [])
     
     if not colecciones:
-        print("No se encontraron colecciones.")
+        print("[!] No se encontraron colecciones.")
         return None
         
     print("\n=== COLECCIONES DISPONIBLES ===")
@@ -67,7 +72,7 @@ def seleccionar_coleccion(session, base_url):
                 return "TODO"
             if 1 <= opcion <= len(colecciones):
                 coleccion_elegida = colecciones[opcion - 1]
-                print(f"-> Has elegido: {coleccion_elegida.get('name')}")
+                print(f"[OK] Colección seleccionada: {coleccion_elegida.get('name')}")
                 return coleccion_elegida["uuid"]
             else:
                 print("Por favor, elige un número válido de la lista.")
@@ -76,7 +81,7 @@ def seleccionar_coleccion(session, base_url):
 
 def extraer_metadatos(session, base_url, coleccion_uuid):
     if coleccion_uuid == "TODO":
-        print("[1/4] Conectando a DSpace y extrayendo TODO el repositorio (Core API)...")
+        print("[1/4] Conectando a DSpace y extrayendo metadatos...")
     else:
         print("[1/4] Conectando a DSpace y extrayendo la Colección (Discover API)...")
         
@@ -85,12 +90,13 @@ def extraer_metadatos(session, base_url, coleccion_uuid):
     size = 100 
     
     while True:
+        # Endpoint distinto según si se escanea todo o una colección específica
         if coleccion_uuid == "TODO":
-            r = session.get(f"{base_url}/api/core/items?size={size}&page={page}")
+            r = session.get(f"{base_url}/api/core/items?size={size}&page={page}", timeout=30)
         else:
             endpoint = f"{base_url}/api/discover/search/objects"
             params = f"?scope={coleccion_uuid}&dsoType=ITEM&embed=indexableObject&size={size}&page={page}"
-            r = session.get(endpoint + params)
+            r = session.get(endpoint + params, timeout=30)
 
         if r.status_code != 200:
             print(f"[ERROR] Falló la lectura en la página {page} -> Código HTTP: {r.status_code}")
@@ -145,6 +151,7 @@ def extraer_metadatos(session, base_url, coleccion_uuid):
             })
             
         print(f"      -> Página {page + 1} de {total_pages} descargada ({len(items_extraidos)} registros acumulados)")
+        time.sleep(0.5)  # Pequeña pausa para no saturar el servidor
         
         if page >= total_pages - 1:
             break
@@ -152,8 +159,8 @@ def extraer_metadatos(session, base_url, coleccion_uuid):
 
     return pd.DataFrame(items_extraidos)
 
+# Extrae la información de un solo ítem usando su UUID.
 def extraer_metadato_item_individual(session, base_url, uuid):
-    """Extrae la información de un solo ítem usando su UUID."""
     print(f"Consultando UUID: {uuid}...")
     url = f"{base_url}/api/core/items/{uuid}"
     

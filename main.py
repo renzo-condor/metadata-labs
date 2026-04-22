@@ -9,7 +9,7 @@ from scripts.mod6_ods_classifier import fase1_generar_propuestas_ods
 
 if __name__ == "__main__":
     print("=======================================")
-    print("METADATA LABS | Intelligence & Quality Assurance")
+    print("METADATA LABS || Control de Calidad de Metadatos")
     print("=======================================\n")
    
     session = get_session()
@@ -21,13 +21,14 @@ if __name__ == "__main__":
         print("3. Comparar Variantes de Autores")
         print("4. Validar Identificadores ORCID")
         print("5. Descargar PDFs Masivamente")
-        print("6. [IA] Asignar ODS Automáticamente (Gemini)")
+        print("6. Clasificar ODS con Inteligencia Artificial (Gemini)")
         print("7. Salir")
 
+        print("\n-----------------------------------------")
         opcion = input("\nElige una opción (1-7): ")
         
         if opcion in ["1", "2", "3", "4", "5", "6"]:
-            df_global = pd.DataFrame() # Creamos un df vacío por defecto
+            df_global = pd.DataFrame() # df vacío por defecto; se llena según el módulo y alcance elegidos
             
             if opcion == "6":
                 print("\n¿Qué alcance deseas procesar con la IA?")
@@ -48,14 +49,14 @@ if __name__ == "__main__":
                 else:
                     print("Opción no válida. Cancelando...")
             
-            # --- LÓGICA PARA LOS MÓDULOS 1 AL 5 (Flujo Directo) ---
+            # Lógica para los módulos 1 al 5 (flujo normal con selección de colección o todo el repositorio)
             else:
                 coleccion_uuid = seleccionar_coleccion(session, BASE_URL)
                 if coleccion_uuid:
                     print("\nExtrayendo metadatos de la colección...")
                     df_global = extraer_metadatos(session, BASE_URL, coleccion_uuid)
 
-            # --- EL BLOQUE DE EJECUCIÓN ---
+            # Ejecutar el módulo elegido pasándole los metadatos
             if not df_global.empty:
                 if opcion == "1":
                     procesar_duplicados(df_global)
