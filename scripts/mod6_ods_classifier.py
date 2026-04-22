@@ -70,7 +70,7 @@ def fase1_generar_propuestas_ods(df):
         print("[ERROR] No se puede continuar sin la llave de API.")
         return
         
-    print(f"\n[1/3] Iniciando clasificación IA para {len(df)} ítems usando Gemini 1.5 Flash...")
+    print(f"\n[1/3] Iniciando clasificación IA para {len(df)} ítems usando Gemini 3.1 Flash Lite...")
     
     resultados = []
     
