@@ -1,6 +1,6 @@
 # Metadata Labs
 
-Metadata Labs es una suite de herramientas desarrollada en Python diseñada para automatizar la extracción, auditoría y corrección de metadatos en repositorios institucionales basados en DSpace. Mediante el uso de la API de DSpace, algoritmos de similitud (RapidFuzz) y modelos de Inteligencia Artificial (Google Gemini), este proyecto facilita el control de calidad masivo de colecciones digitales.
+Metadata Labs es una suite de herramientas desarrollada en Python diseñada para automatizar la extracción, auditoría y corrección de metadatos en repositorios institucionales basados en DSpace 7.x u 8.x. Mediante el uso de la API de DSpace, algoritmos de similitud (RapidFuzz) y modelos de Inteligencia Artificial (Google Gemini), este proyecto facilita el control de calidad masivo de colecciones digitales.
 
 ## Características Principales
 
@@ -21,7 +21,8 @@ El script principal (`main.py`) opera mediante un menú interactivo que permite 
 
 ## Requisitos Previos
 
-Asegúrate de tener instalado Python 3.10+ y las siguientes librerías:
+* **Servidor:** DSpace versión 7.x u 8.x (No compatible con DSpace 6 o inferiores).
+* **Entorno:** Python 3.10+ y las siguientes librerías:
 
 ```bash
 pip install pandas numpy rapidfuzz requests openpyxl python-dotenv google-genai
@@ -35,9 +36,9 @@ Crea tu archivo `.env` guiándote con el archivo `.env.example` incluido en el r
 
 ```env
 DSPACE_USER="correo_admin@institucion.org"
-DSPACE_PASSWORD="tu_contraseña_segura"
-UI_BASE_URL="[https://repositorio.institucion.org/items](https://repositorio.institucion.org/items)"
-DSPACE_URL="[https://repositorio.institucion.org/server](https://repositorio.institucion.org/server)"
+DSPACE_PASSWORD="tu_contraseña"
+UI_BASE_URL="https://repositorio.institucion.org/items"
+DSPACE_URL="https://repositorio.institucion.org/server"
 GEMINI_API_KEY="tu_api_key_de_gemini"
 ```
 
