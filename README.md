@@ -1,4 +1,4 @@
-# Metadata Labs || Control de Calidad de Metadatos
+# Metadata Labs
 
 Metadata Labs es una suite de herramientas desarrollada en Python diseñada para automatizar la extracción, auditoría y corrección de metadatos en repositorios institucionales basados en DSpace. Mediante el uso de la API de DSpace, algoritmos de similitud (RapidFuzz) y modelos de Inteligencia Artificial (Google Gemini), este proyecto facilita el control de calidad masivo de colecciones digitales.
 
@@ -21,7 +21,7 @@ El script principal (`main.py`) opera mediante un menú interactivo que permite 
 
 ## Requisitos Previos
 
-Asegúrate de tener instalado Python 3.8+ y las siguientes librerías:
+Asegúrate de tener instalado Python 3.10+ y las siguientes librerías:
 
 ```bash
 pip install pandas numpy rapidfuzz requests openpyxl python-dotenv google-genai
